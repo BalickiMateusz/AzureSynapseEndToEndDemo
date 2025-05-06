@@ -1,0 +1,419 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"workspaceName": {
+			"type": "string",
+			"metadata": "Nazwa obszaru roboczego",
+			"defaultValue": "workspace3131"
+		},
+		"Source_Dataset_LS": {
+			"type": "string"
+		},
+		"StorageLS": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('workspaceName'), '/Copy_Data_Source_To_Raw_PL')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy Source Data To Raw Container",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "BinarySource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true
+								},
+								"formatSettings": {
+									"type": "BinaryReadSettings"
+								}
+							},
+							"sink": {
+								"type": "BinarySink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings",
+									"copyBehavior": "PreserveHierarchy"
+								}
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "Source_DataPrep_DS",
+								"type": "DatasetReference",
+								"parameters": {
+									"DatasetSize": {
+										"value": "@pipeline().parameters.DatasetSize",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "Sink_DataPrep_DS",
+								"type": "DatasetReference",
+								"parameters": {
+									"StorageName": {
+										"value": "@pipeline().parameters.TargetStorageName",
+										"type": "Expression"
+									},
+									"DatasetSize": {
+										"value": "@pipeline().parameters.DatasetSize",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "Create Curated Container",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Copy Source Data To Raw Container",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "BinarySource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true
+								},
+								"formatSettings": {
+									"type": "BinaryReadSettings"
+								}
+							},
+							"sink": {
+								"type": "BinarySink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings",
+									"copyBehavior": "PreserveHierarchy"
+								}
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "Source_DataPrep_Curated_DS",
+								"type": "DatasetReference"
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "Sink_DataPrep_Curated_DS",
+								"type": "DatasetReference",
+								"parameters": {
+									"StorageName": {
+										"value": "@pipeline().parameters.TargetStorageName",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "Create Processed Container",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Copy Source Data To Raw Container",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "BinarySource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true
+								},
+								"formatSettings": {
+									"type": "BinaryReadSettings"
+								}
+							},
+							"sink": {
+								"type": "BinarySink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings",
+									"copyBehavior": "PreserveHierarchy"
+								}
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "Source_DataPrep_Processed_DS",
+								"type": "DatasetReference"
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "Sink_DataPrep_Processed_DS",
+								"type": "DatasetReference",
+								"parameters": {
+									"StorageName": {
+										"value": "@pipeline().parameters.TargetStorageName",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					}
+				],
+				"parameters": {
+					"TargetStorageName": {
+						"type": "string",
+						"defaultValue": "storageAccount3131"
+					},
+					"DatasetSize": {
+						"type": "string",
+						"defaultValue": "1tb"
+					}
+				},
+				"folder": {
+					"name": "Data Prep"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/datasets/Source_DataPrep_DS')]",
+				"[concat(variables('workspaceId'), '/datasets/Sink_DataPrep_DS')]",
+				"[concat(variables('workspaceId'), '/datasets/Source_DataPrep_Curated_DS')]",
+				"[concat(variables('workspaceId'), '/datasets/Sink_DataPrep_Curated_DS')]",
+				"[concat(variables('workspaceId'), '/datasets/Source_DataPrep_Processed_DS')]",
+				"[concat(variables('workspaceId'), '/datasets/Sink_DataPrep_Processed_DS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Source_DataPrep_DS')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('Source_Dataset_LS')]",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"StorageWithSaSUrl": {
+							"value": "@concat('https://medicaldl.blob.core.windows.net/source?SAS=REDACTED')",
+							"type": "Expression"
+						}
+					}
+				},
+				"parameters": {
+					"DatasetSize": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "Binary",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": {
+							"value": "@dataset().DatasetSize",
+							"type": "Expression"
+						},
+						"container": "source"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Sink_DataPrep_DS')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('StorageLS')]",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"StorageName": {
+							"value": "@dataset().StorageName",
+							"type": "Expression"
+						}
+					}
+				},
+				"parameters": {
+					"StorageName": {
+						"type": "string"
+					},
+					"DatasetSize": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "Binary",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": {
+							"value": "@concat('fhir_ndjson/', dataset().DatasetSize)",
+							"type": "Expression"
+						},
+						"fileSystem": "raw"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Source_DataPrep_Curated_DS')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('Source_Dataset_LS')]",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"StorageWithSaSUrl": {
+							"value": "@concat('https://medicaldl.blob.core.windows.net/source?sp=rl&st=2023-04-05T05:00:00Z&se=2028-04-05T05:00:00Z&spr=https&sv=2021-12-02&sr=c&sig=t7P4PfO0HqRHAW%2FJQsMH9K3cgf9MguIgSKGdNYoyar4%3D')",
+							"type": "Expression"
+						}
+					}
+				},
+				"annotations": [],
+				"type": "Binary",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": "Create_Curated.txt",
+						"container": "source"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Sink_DataPrep_Curated_DS')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('StorageLS')]",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"StorageName": {
+							"value": "@dataset().StorageName",
+							"type": "Expression"
+						}
+					}
+				},
+				"parameters": {
+					"StorageName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "Binary",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileSystem": "curated"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Source_DataPrep_Processed_DS')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('Source_Dataset_LS')]",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"StorageWithSaSUrl": {
+							"value": "@concat('https://medicaldl.blob.core.windows.net/source?sp=rl&st=2023-04-05T05:00:00Z&se=2028-04-05T05:00:00Z&spr=https&sv=2021-12-02&sr=c&sig=t7P4PfO0HqRHAW%2FJQsMH9K3cgf9MguIgSKGdNYoyar4%3D')",
+							"type": "Expression"
+						}
+					}
+				},
+				"annotations": [],
+				"type": "Binary",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": "Create_Processed.txt",
+						"container": "source"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Sink_DataPrep_Processed_DS')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('StorageLS')]",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"StorageName": {
+							"value": "@dataset().StorageName",
+							"type": "Expression"
+						}
+					}
+				},
+				"parameters": {
+					"StorageName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "Binary",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileSystem": "processed"
+					}
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}
